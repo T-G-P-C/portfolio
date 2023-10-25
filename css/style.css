@@ -1,0 +1,1298 @@
+/*
+    レイヤーについて：
+    z-index:0   :なし　何か隠したいときはここに動かす
+    z-index:1   :ゲーム画面
+    z-index:2   :抜けるときのピンの画像
+    z-index:3   :ピンの画像、蓋
+    z-index:4   :刺すときのピンと、ヒットとブローの文
+    z-index:5   :メニュー画面の位置
+    z-index:6   :メニューボタン
+
+    JavaScriptで扱うクラス：
+    ActiveMenu：
+        メニュー画面を活性化
+    Select：
+        ピックアップするクラス
+    Blue,Red,Green,Yellow,Magenta,White,Question
+        それぞれのピン
+
+    命名規則：
+    HTMLClass：AbcDef
+    id       ：abcDef
+    css var  ：--abc-def
+    etc      ：Abc_Def
+
+    数字は画像
+    ピンは画像のオリジナルの白い部分のレイヤーにメッシュ変形2*2の中心を上に2マス上げたものを完成系とする
+*/
+
+html { /* root文字サイズをリキッドに対応　ここの文字サイズ1remになるため、こいつを基準にコーディングする */
+    font-size: 1vw;
+    font-family: 'Noto Sans JP', sans-serif;
+    --hint-pin-size: 2.5rem; /* ヒントピンの大きさ */
+    --color-pin-size: 5.5rem; /* 色のピンの大きさ */
+    --pin-area-size: 6rem; /* 色のピンの周りや穴の画像の大きさ */
+    --point-to-color-pin-time: 0.35s; /* 色のピンが刺さるアニメーションの長さ */
+    --pull-out-color-pin-time: 0.12s; /* 色のピンが抜けるアニメーションの長さ */
+}
+@media only screen and (min-width: 1000px) {
+    html {
+        font-size: 10px;
+    }
+}
+@media only screen and (max-width: 390px) {
+    html {
+        font-size: 3.9px;
+    }
+    body { /* 横幅の定義 */
+        width: 390px;
+    }
+}
+
+p { /* 初期状態でついているmarginを消す */
+    margin: 0;
+}
+
+body { /* 背景色 */
+    background-color: wheat;
+}
+
+.BackGround { /* 背景 */
+    position: fixed; /* 絶対的に位置を決定する */
+    top: 0; /* 位置を上から0pxとする */
+    background-color: wheat;
+    height: 100%; /* 高さを画面の高さとする */
+    width: 100%;
+    z-index: 1;
+}
+
+
+/*  メニュー */
+.MenuOpen { /* メニューを開くためのボタン */
+    position: fixed; /* スクロールしても位置が変わらない */
+    top: 10px;
+    left: 10px;
+    font-size: 3rem;
+    color: black;
+    background-color: rgba(255, 255, 255, 0.4);
+    border: 1px solid black;
+    z-index: 6;
+}
+.MenuOpen:active {
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+.MenuGroup>* { /* メニューの背景のデザイン */
+    position: fixed;
+    display: flex; /* なんか便利な奴 */
+    flex-flow: column; /* flex-box内の要素を縦に並べる */
+    align-items: center; /* flex-box内の要素をflex-flowの方向に中央寄せ(今回は縦) */
+    justify-content: center; /* flex-box内の要素をalgin-itemsと違う方向に中央寄せ(今回は横) */
+    backdrop-filter: blur(5px); /* 後ろにブラー */
+    padding: 10px;
+    gap: 10px; /* flex-box内の要素の間隔 */
+    height: 100%;
+    width: 100%;
+    min-width: 100rem; /* 画面が小さいとき、この指定がないと横幅がおかしくなる */
+    z-index: 0; /* レイヤーの決定(position要素が必須) */
+}
+
+.MenuAnnounce {  /* データ削除などの時に確認するウィンドウのクラス */
+    backdrop-filter: blur(3px);
+}
+
+.TextCover { /* メニュー内の文章に使う */
+    Text-align: center;
+    border-radius: 10px;
+    background-color: whitesmoke;
+    max-width: 100%;
+    padding: 5px calc(2.5rem + 10px) calc(2.5rem + 10px);
+}
+
+.TextCover .Head { /* メニュー内の文章の見出し */
+    display: inline-block; /* インラインとブロックの性質を併せ持つ */
+    text-align: center;
+    font-size: 3.2rem;
+    background-color: whitesmoke;
+    font-weight: bold;
+    margin: 0;
+    padding: 0 0.4rem;
+    position: relative; /* 親要素を基準とした相対的なポジション */
+    top: 0;
+}
+
+.TextCover .Text { /* メニュー内の文章 */
+    display: flex;
+    Text-align: left;
+    flex-flow: column;
+    overflow-y: auto; /* 縦がはみ出る時にスクロールできるようにする */
+    max-height: calc(100vh - 100px); /* いい感じの上限 */
+    gap: 5px;
+    padding: 10px;
+    margin: 0;
+    font-size: 2.8rem;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1rem whitesmoke inset,
+                0 0 0 1rem whitesmoke,
+                0 0 0 2.2rem whitesmoke,
+                0 0 0 2.5rem dimgray; /* box-shadowを使って複数本の線を引くことができる。その場合ぼかし(3つ目の数字)を0とすると扱いやすい */
+}
+
+.TextCover button { /* メニュー内のボタン */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.8rem;
+    max-width: 30rem;
+    height: 4.8rem;
+    background-color: whitesmoke;
+    border: 2px solid dimgray;
+}
+
+.TextCover button:not(.NowPage):active {
+    background-color: darkgrey;
+}
+
+.MenuButton { /* メニューの下に表示する「メニューに戻る」などのボタン */
+    position: relative;
+    bottom: -1rem;
+    left: 50%;
+    transform: translateX(-50%); /* 自身の横幅の50%左に動かす */
+}
+
+.MenuButtonGroup {
+    position: relative;
+    bottom: -1rem;
+    left: 50%;
+    transform: translateX(-50%); /* 自身の横幅の50%左に動かす */
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.MenuGroup *::-webkit-scrollbar { /* スクロールバーの見た目を変える firefoxでは適用されない */
+    height: 10px;
+    width: 10px;
+}
+.MenuGroup *::-webkit-scrollbar-thumb { /* 操作できる棒 */
+    border-radius: 5px;
+    background-color: darkgrey;
+}
+.MenuGroup *::-webkit-scrollbar-thumb:active { /* 裏の棒 */
+    background-color: gray;
+}
+
+.TextImg1 { /* テキスト中の画像1 */
+    width: 2.8rem;
+    height: 2.8rem;
+}
+
+.TextImg2 { /* テキスト中の画像2 */
+    width: 4rem;
+    height: 4rem;
+}
+
+.MenuAnnounce .TextCover { /* アナウンスのウィンドウ */
+    box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.5);
+}
+
+.MenuAnnounce button { /* アナウンスのウィンドウ */
+    width: 9.2rem;
+}
+
+
+#topMenu .Text {
+    width: 33rem; /* 固定しないと文が変わったときに横幅が変わる */
+}
+
+#topMenu .Select {
+    position: relative;
+    left: 1rem;
+    box-shadow: 0 0 0 1px white,
+                0 0 0 3px cyan;
+}
+
+#scoreMenu1 .Text{ /* スコア画面 */
+    white-space: nowrap; /* 改行禁止 */
+}
+
+#scoreMenu2 .SideText {
+    gap: 2rem;
+}
+
+.ScoreBar {
+    box-shadow: -1.3rem 0 0 0 whitesmoke,
+                -1.6rem 0 0 0 dimgray;
+}
+
+.SideText { /* テキストを横に並べる奴 */
+    display: flex;
+}
+
+.Scroll { /* 横にスクロールさせる */
+    display: flex;
+    gap: 3rem;
+    white-space: nowrap;
+    overflow-x: auto; /* 横がはみ出る時にスクロールできるようにする */
+}
+
+.SoundBar { /* 音量の棒の周囲 */
+    display: flex;
+    align-items: center;
+    height: 4.2rem;
+    width: 100%;
+}
+
+[type="range"] { /* 音量設定のバー */
+    appearance: none; /* 初期設定の解除 */
+    border: 2px solid #555;
+    border-radius: 5px;
+    height: 1.5rem;
+    width: 100%;
+}
+[type="range"]::-webkit-slider-thumb {/* ツマミ */
+    appearance: none;
+    background-color: #555;
+    box-shadow: 0 0 0 4px #555;
+    height: 1.5rem;
+    width: 0.2rem;
+}
+
+#mainSoundSize, #BGMSoundSize, #SESoundSize, #CVSoundSize {
+    width: 2em;
+    text-align: center;
+}
+
+.Pagination { /* メニューにあるページ切り替え　*/
+    position: relative;
+    bottom: -1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; 
+    justify-content: center;
+    gap: 1rem;
+}
+
+.Pagination>.NowPage { /* 現在ページのところ */
+    background-color: yellow;
+}
+
+.ScoreText { /* スコアの高さの統一 オプションの高さはjsで統一している */
+    height: 46.2rem;
+}
+
+.OptionKey {
+    border: 1px solid #555;
+    padding: 0 0.3rem;
+    cursor: pointer;
+}
+
+.OptionKey.Select {
+    box-shadow: 0 0 0 1px cyan inset;
+}
+
+.SoundOption { /* 音量設定周辺 */
+    align-items: center;
+    white-space: nowrap;
+    gap: 1rem;
+}
+
+.SoundImg { /* スピーカーの画像 */
+    height: 3.2rem;
+    width: 3.2rem;
+}
+
+.ActiveMenu { /* こいつを指定したメニュー等が活性化する */
+    z-index: 5;
+}
+
+#overBoardDisplay:not(.ActiveMenu) {
+    font-size: 0;
+}
+
+:has(>#overBoardDisplay) { /* 何ヒット何ブローを表示するやつ */
+    position: absolute;
+    white-space: nowrap;
+    top: 25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0px 1px 3px black;
+    transition: font-size 50ms 0s ease-in;
+}
+
+:has(>#overBoardDisplay.ActiveMenu) { /* ActiveMenuがついたら手前に来る */
+    z-index: 4;
+    font-size: 5rem;
+}
+#overBoardDisplay {
+    position: relative;
+}
+
+.Star {
+    position: absolute;
+}
+:has(>#overBoardDisplay.ActiveMenu.Win) .Star { /* 勝ったときに出る星 */
+    bottom: 0;
+    width: 16rem;
+    height: 4rem;
+    background-image: url(../img/Star.png);
+    background-size: 4rem;
+    background-repeat: no-repeat;
+}
+:has(>#overBoardDisplay.ActiveMenu.Win) .RotateRight{ /* 右に回転 */
+    transform: translateX(75%);
+    animation: Rotate_Right 1s linear forwards;
+    background-position: center left;
+}
+@keyframes Rotate_Right {
+    0% {
+        transform: translateX(75%) rotate(0deg);
+    }
+    50% {
+        background-image: url(../img/Star.png);
+    }
+    100% {
+        bottom: 10rem;
+        background-image: url(../img/Clear.png);
+        transform: translateX(75%) rotate(180deg);
+    }
+}
+:has(>#overBoardDisplay.ActiveMenu.Win) .RotateLeft{ /* 左に回転 */
+    transform: translateX(-75%);
+    animation: Rotate_Left 1s linear forwards;
+    background-position: center right;
+}
+@keyframes Rotate_Left {
+    0% {
+        transform: translateX(-75%) rotate(360deg);
+    }
+    50% {
+        background-image: url(../img/Star.png);
+    }
+    100% {
+        bottom: 10rem;
+        background-image: url(../img/Clear.png);
+        transform: translateX(-75%) rotate(180deg);
+    }
+}
+
+.Tears {
+    position: absolute;
+}
+:has(>#overBoardDisplay.ActiveMenu.Lose) .Tears { /* しずくを垂らすやつ */
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url(../img/Tear.png), url(../img/Tear.png), url(../img/Tear.png), url(../img/Tear.png);
+    background-size: 4rem, 4rem, 4rem, 4rem;
+    background-position: left center, 30% top, 70% bottom, right center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+    animation: Drop 1s linear forwards;
+}
+@keyframes Drop {
+    0% {
+        top: 0;
+    }
+    60% {
+        background-image: url(../img/Tear.png), url(../img/Tear.png), url(../img/Tear.png), url(../img/Tear.png);
+    }
+    100% {
+        top: 6rem;
+        background-image: url(../img/Clear.png), url(../img/Clear.png), url(../img/Clear.png), url(../img/Clear.png);
+    }
+}
+
+
+.TopExplain { /* 上のヒットとブローの説明文 */
+    position: relative;
+    top: 4vh;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--hint-pin-size);
+}
+
+
+/* ゲーム部分 */
+.BoardBack { /* ゲーム盤の周囲 */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center; /* 縦中央寄せ */
+    justify-content: center; /* 横中央寄せ */
+    margin: 5vh 0 2vh;
+}
+
+
+.BoardGroup { /* ゲーム盤全体 */
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    background-color: dimgray;
+    padding: 10px 8px 10px 5px;
+    border-radius: 20px;
+    box-shadow: 0 0 0 1px #555, /* 影で疑似的に複数の線を引く */
+                0 0 0 7px whitesmoke, /* 影で疑似的に複数の線を引く */
+                0 7px 0 7px#ddd, /* 奥行:2個目の数字 */
+                0 10px 10px 5px dimgray; /* 影 */
+    margin-top: 8px; /* 外枠と影でずれる分の補正 */
+    margin-bottom: 14px; /* 外枠と影でずれる分の補正 */
+    gap: 10px;
+    z-index: 1;
+}
+
+.NavigateCol { /* 上の数字とかの行 */
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.NavigateBox { /* 上の数字とかの周囲 */
+    display: flex;
+    justify-content: center;
+    flex: 1; /* flex-box内では要素の大きさを比率で指定することができる。 */
+}
+
+.NavigateBox img { /* 上の数字とか▶とか */
+    width: 5rem;
+}
+
+.DummyBox1 { /* 左端の空白 */
+    flex: 0.5;
+}
+
+.DummyBox2 { /* 右端の空白 */
+    flex: 2.5;
+}
+
+
+.HintCol { /* ヒントピンの並ぶ行 */
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.HintGroup { /* ヒントを覆う範囲 */
+    display: flex;
+    justify-content: center;
+    flex: 1;
+}
+
+.HintHoleGroup, .HintPinGroup, .HintDummy { /* 答えの上のスペース用のダミーとヒントピンの周囲 */
+    width: var(--pin-area-size);
+    height: var(--pin-area-size);
+}
+
+.HintHoleGroup, .HintPinGroup { /* ヒントピンと穴の周囲 */
+    display: flex;
+    flex-wrap: wrap; /* flex-box内を折り返す */
+    align-items: center;
+    justify-content: center;
+    column-gap: 0.3rem;
+}
+
+.HintHoleGroup { /* ヒントピンの穴の周囲 */
+    background-color: gray;
+    box-shadow: 0 -1px 0 1px dimgray,
+                0 -1px 0 2px gray;
+    border-radius: 10px;
+}
+
+.HintPinGroup { /* ヒントピンの周囲 */
+    position: absolute;
+    z-index: 2;
+}
+
+.HintPin { /* ヒントピン */
+    width: var(--hint-pin-size);
+    height: var(--hint-pin-size);
+    padding: 0.2rem;
+}
+
+.HintGroup [src="img/Hit.png"] { /* ヒットピンが刺さるとき */
+    background-image: url(../img/Hit_Bar.png); /* 背景画像を使って棒を表示する */
+}
+
+.HintGroup [src="img/Blow.png"] { /* ブローピンが刺さるとき */
+    background-image: url(../img/Blow_Bar.png)
+}
+
+.HintGroup [src="img/Hit.png"], .HintGroup [src="img/Blow.png"] { /* ヒントピンが刺さるアニメーション */
+    position: relative;
+    bottom: 2rem;
+    background-size: var(--hint-pin-size); /* 背景画像の大きさ */
+    background-position: center; /* 背景画像の位置 */
+    background-clip: border-box; /* 背景画像の範囲(今回はborderの範囲まで) */
+    background-repeat: no-repeat; /* 背景画像を繰り返すか */
+    animation-name: Point_To_Hint_Pin; /* アニメーションの名前 */
+    animation-duration: 50ms; /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards; /* アニメーション終了後、終了後の見た目に固定される */
+}
+
+@keyframes Point_To_Hint_Pin { /* ヒントピンが刺さるアニメーション */
+    0%{} /* アニメーションの時間が何％進んだ時にどんな変化をするか */
+    60%{
+        background-size: var(--hint-pin-size) var(--hint-pin-size);
+    }
+    90%{
+        background-size: var(--hint-pin-size) 0;
+    }
+    100%{
+        bottom: 0;
+        background-size: 0;
+    }
+}
+
+
+.GameGroup { /* 縦列の集まり */
+    display: flex;
+    width: 90rem;
+}
+
+.RowGroup { /* 縦列 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.QuestHoleGroup, .QuestPinGroup, .PullOutPinGroup { /* 回答のピンと穴の周囲を合わせたもの */
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 7rem;
+    border-radius: 10px;
+}
+
+.QuestHoleGroup { /* 回答のピンの穴の周囲 */
+    background-color: gray;
+    box-shadow: 0 0 0 1px gray inset,
+                0 0 0 2px dimgray inset,
+                0 1px 0 2px dimgray inset,
+                0 -1px 0 1px #888,
+                0 0px 0 2px gray,
+                0 2px 0 2px #555;
+}
+
+.PullOutPinGroup { /* ピンがのけるアニメーションのレイヤー */
+    position: absolute;
+    z-index: 2;
+}
+
+.QuestPinGroup { /* 回答のピンの周囲 */
+    position: absolute;
+    z-index: 3;
+}
+
+.AnsHoleGroup { /* 答えのピンの周囲 */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    background-color: #888;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px gray,
+                0 0 0 2px dimgray,
+                0 -1px 0 2px dimgray,
+                0 -1px 0 4px #888,
+                0 0px 0 5px gray,
+                0 2px 0 5px #555;
+    width: 8rem;
+}
+
+.AnsPinGroup { /* 答えのピンの周囲 */
+    position: absolute;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 8rem;
+}
+
+#ansLid { /* 答えのところの蓋 */
+    position: absolute;
+    z-index: 3;
+    height: 26.4rem;
+    width: 7.8rem;
+    margin-bottom: 0.8rem;
+    border-radius: 50% 50% 6px 6px / 1.5rem 1.5rem 6px 6px;
+    border: 1px solid gray;
+    background-color: darkgray;
+    box-shadow: 18px 0 30px -25px dimgray inset,
+                18px 0 20px -5px gray inset,
+                -18px 0 30px -25px dimgray inset,
+                -18px 0 20px -5px gray inset,
+                0 -10px 5px -5px #696969 inset;
+}
+
+#ansLid:not(.OpenLid) { /* 答えのところの蓋が閉まる */
+    animation-name: Close_Lid; /* アニメーションの名前 */
+    animation-duration: 1s; /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+
+#ansLid.OpenLid { /* 答えのところの蓋が開く */
+    animation-name: Open_Lid; /* アニメーションの名前 */
+    animation-fill-mode: forwards; /* アニメーション終了後、終了後の見た目に固定される */
+    animation-duration: 1s; /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+
+@keyframes Close_Lid { /* 蓋が閉まるアニメーション */
+    0% {
+        width: 4px;
+        margin-right: calc(7.8rem - 4px);
+        border-radius: 100% 0 0 6px / 1.5rem 0 0 6px;
+        box-shadow: 0 4px 0 0 dimgray inset,
+                    18px 0 30px -25px dimgray inset,
+                    18px 0 20px -5px gray inset,
+                    0 -10px 5px -5px #696969 inset;
+    }
+    50% {
+        height: 26.4rem;
+        border-radius: 100% 0 0 6px / 1.5rem 0 0 6px;
+        box-shadow: 18px 0 30px -25px dimgray inset,
+                    18px 0 20px -5px gray inset,
+                    0 -10px 5px -5px #696969 inset;
+    }
+    100% {
+    }
+}
+
+@keyframes Open_Lid { /* 蓋が開くアニメーション */
+    0% {}
+    50% {
+        height: 26.4rem;
+        border-radius: 100% 0 0 6px / 1.5rem 0 0 6px;
+        box-shadow: 18px 0 30px -25px dimgray inset,
+                    18px 0 20px -5px gray inset,
+                    0 -10px 5px -5px #696969 inset;
+    }
+    100% {
+        width: 4px;
+        height: 25rem;
+        margin-right: calc(7.8rem - 4px);
+        margin-top: 0.5rem;
+        box-shadow: 0 4px 0 0 dimgray inset,
+                    18px 0 30px -25px dimgray inset,
+                    18px 0 20px -5px gray inset,
+                    0 -10px 5px -5px #696969 inset;
+    }
+}
+
+.QuestHoleGroup img, .PullOutPinGroup div, .QuestPinGroup [type="image"], .AnsHoleGroup img, .AnsPinGroup img { /* 回答、正解のピン */
+    width: var(--pin-area-size);
+    height: var(--pin-area-size);
+    margin-top: 4%;
+}
+
+/* ピンの画像を設定するエリア */
+.QuestPinGroup .Select {
+    background-image: url(../img/VerCircle.png);
+    background-size: var(--pin-area-size);
+}
+
+.Blue {
+    background-image: url(../img/Blue.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Blue.Select { /* 縦列で選択されているとき */
+    background-image: url(../img/VerCircle.png), url(../img/Blue.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .Blue.Select, .SampleBlue.Select { /* 下の行で選択されているとき */
+    background-image: url(../img/SideCircle.png), url(../img/Blue.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleBlue {
+    background-image: url(../img/Blue.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Blue, .ColorSamplePinGroup .Blue { /* アニメーション */
+    animation-name: Point_To_Blue_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Blue_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Blue.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_Blue.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .Blue { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/Blue.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_Blue_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_Blue_Pin {
+    0%{
+        background-image: url(../img/Blue.png);
+    }
+    40%{
+        background-image: url(../img/Side_Blue.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_Blue.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.Red {
+    background-image: url(../img/Red.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Red.Select {
+    background-image: url(../img/VerCircle.png), url(../img/Red.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .Red.Select, .SampleRed.Select {
+    background-image: url(../img/SideCircle.png), url(../img/Red.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleRed {
+    background-image: url(../img/Red.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Red, .ColorSamplePinGroup .Red { /* アニメーション */
+    animation-name: Point_To_Red_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Red_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Red.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_Red.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .Red { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/Red.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_Red_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_Red_Pin {
+    0%{
+        background-image: url(../img/Red.png);
+    }
+    40%{
+        background-image: url(../img/Side_Red.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_Red.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.Green {
+    background-image: url(../img/Green.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Green.Select {
+    background-image: url(../img/VerCircle.png), url(../img/Green.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .Green.Select, .SampleGreen.Select {
+    background-image: url(../img/SideCircle.png), url(../img/Green.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleGreen {
+    background-image: url(../img/Green.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Green, .ColorSamplePinGroup .Green { /* アニメーション */
+    animation-name: Point_To_Green_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Green_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Green.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_Green.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .Green { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/Green.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_Green_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_Green_Pin {
+    0%{
+        background-image: url(../img/Green.png);
+    }
+    40%{
+        background-image: url(../img/Side_Green.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_Green.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.Yellow {
+    background-image: url(../img/Yellow.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Yellow.Select {
+    background-image: url(../img/VerCircle.png), url(../img/Yellow.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .Yellow.Select, .SampleYellow.Select {
+    background-image: url(../img/SideCircle.png), url(../img/Yellow.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleYellow {
+    background-image: url(../img/Yellow.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Yellow, .ColorSamplePinGroup .Yellow { /* アニメーション */
+    animation-name: Point_To_Yellow_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Yellow_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Yellow.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_Yellow.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .Yellow { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/Yellow.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_Yellow_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_Yellow_Pin {
+    0%{
+        background-image: url(../img/Yellow.png);
+    }
+    40%{
+        background-image: url(../img/Side_Yellow.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_Yellow.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.Magenta {
+    background-image: url(../img/Magenta.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Magenta.Select {
+    background-image: url(../img/VerCircle.png), url(../img/Magenta.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .Magenta.Select, .SampleMagenta.Select {
+    background-image: url(../img/SideCircle.png), url(../img/Magenta.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleMagenta {
+    background-image: url(../img/Magenta.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .Magenta, .ColorSamplePinGroup .Magenta { /* アニメーション */
+    animation-name: Point_To_Magenta_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Magenta_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Magenta.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_Magenta.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .Magenta { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/Magenta.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_Magenta_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_Magenta_Pin {
+    0%{
+        background-image: url(../img/Magenta.png);
+    }
+    40%{
+        background-image: url(../img/Side_Magenta.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_Magenta.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.White {
+    background-image: url(../img/White.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .White.Select {
+    background-image: url(../img/VerCircle.png), url(../img/White.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.ColorSamplePinGroup .White.Select, .SampleWhite.Select {
+    background-image: url(../img/SideCircle.png), url(../img/White.png);
+    background-size: var(--pin-area-size), var(--color-pin-size);
+}
+.SampleWhite {
+    background-image: url(../img/White.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.QuestPinGroup .White, .ColorSamplePinGroup .White { /* アニメーション */
+    animation-name: Point_To_White_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_White_Pin {
+    0%{
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_White.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        background-image: url(../img/Slant_White.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+.PullOutPinGroup .White { /* ピンが抜けるアニメーションを動かすクラス */
+    background-image: url(../img/White.png);
+    transform: rotate(45deg);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative;
+    animation-name: Pull_Out_White_Pin;
+    animation-duration: var(--pull-out-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+    animation-fill-mode: forwards;
+}
+@keyframes Pull_Out_White_Pin {
+    0%{
+        background-image: url(../img/White.png);
+    }
+    40%{
+        background-image: url(../img/Side_White.png);
+        left: 2rem;
+    }
+    80%{
+        background-image: url(../img/Side_White.png);
+    }
+    100%{
+        background-image: url(../img/Clear.png);
+        left: 4rem;
+    }
+}
+
+.Question {
+    background-image: url(../img/Question.png);
+    background-size: var(--color-pin-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    animation-name: Point_To_Question_Pin;
+    position: relative;
+    animation-duration: var(--point-to-color-pin-time); /* アニメーションの時間 */
+    animation-timing-function: linear; /* アニメーションの滑らかさ */
+}
+@keyframes Point_To_Question_Pin {
+    0%{
+        z-index: 4;
+        bottom: 0;
+        right: 4rem;
+        background-image: url(../img/Clear.png);
+        background-size: var(--color-pin-size);
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    10%{
+        background-image: url(../img/Slant_Question.png);
+    }
+    20%{
+        bottom: 4rem;
+    }
+    80%{
+        bottom: 4rem;
+        right: 4rem;
+    }
+    100%{
+        z-index: 4;
+        background-image: url(../img/Slant_Question.png);
+        bottom: 1.6rem;
+        right: 1.6rem;
+    }
+}
+
+
+.Select.QuestPinGroup { /* このクラスをQuestPinGroupやCheckに付けると円で囲まれる */
+    box-shadow: 0 0 0 1px white,
+                0 0 0 3px cyan,
+                0 0 0 4px white;
+}
+
+/* 下の部分 */
+.FooterGroup { /* 下全体 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.ColorSampleGroup { /* ピンのサンプル */
+    display: flex;
+    justify-content: center;
+    flex: 8;
+}
+
+.ColorSampleHoleGroup, .ColorSamplePinGroup {
+    display: flex;
+    gap: 0.1rem;
+}
+
+.ColorSampleHoleGroup { /* ピンのサンプルの穴 */
+    background-color: gray;
+    border-radius: 1vw;
+    box-shadow: 0 0 0 3px gray;
+}
+
+.ColorSamplePinGroup { /* ピンのサンプル */
+    position: absolute;
+    z-index: 3;
+}
+
+.ColorSamplePinGroup [type="image"], .ColorSampleHoleGroup img { /* ピンのサンプル */
+    margin: 0;
+    width: var(--pin-area-size);
+    height: var(--pin-area-size);
+}
+
+
+.CheckGroup { /* ボタンの周囲 */
+    flex: 1;
+}
+
+#check { /* 答え合わせボタン */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 5rem;
+    font-size: 2.8rem;
+    border-radius: 10px;
+    padding-top: 0;
+    padding-bottom: 3px;
+    margin-bottom: 3px;
+    background-color: #888;
+    color: #ddd;
+    border: none;
+    box-shadow: 0 -1px 0 2px gray inset,
+                0 2px 0 0px #555;
+    transition-property: margin,box-shadow; /* ここで指定したもののみが滑らかに変化する */
+    transition: 50ms 0s ease;
+}
+
+#check:active { /* ボタンを押したときの動き */
+    margin-top: 3px;
+    margin-bottom: 0;
+    box-shadow: none;
+    box-shadow: 0 -1px 0 2px gray inset;
+}
+
+#check.Select{
+    box-shadow: 0 0 0 1px white,
+                0 0 0 3px cyan,
+                0 0 0 4px white;
+}

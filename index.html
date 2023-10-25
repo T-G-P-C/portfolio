@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="jp">
+<h>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+
+    <!-- Bootstrap5 -->
+    <!-- Latest compiled and minified CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="css/style.css">
+    <title>Hit&Blow</title>
+</h>
+
+<!-- 
+    id一覧
+
+    hint[N]-[M]     :ヒントの穴 [N]は列、[M]は何個目か
+    pullOut[N]-[M]  :ピンが抜けるアニメーションに使う穴 [N]は列、[M]は行
+    questPin[N]-[M] :回答の穴 [N]は列、[M]は行
+    ansPin[N]       :答えのピン [N]は上から何個目か
+    questGroup[N]   :回答のピンの列 [N]は何列目か
+    colorSample[N]  :下にあるピン [N]は左から何個目か
+
+    menuGroup :メニュー全体
+
+    topMenu :メニューを開くと最初に出る選択画面
+        score        :スコア画面へのボタン
+        option      :設定画面へのボタン
+        help        :ヘルプ画面へのボタン
+        level       :難易度切り替えボタン
+        startGiveUp :ゲームスタート/諦めるボタン
+        close       :閉じるボタン
+
+    scoreMenu :スコア画面
+        score1           :被りなしのスコア
+        score1-1         :score1の例
+        score2           :被りありのスコア
+        score2-1         :score2の例
+        numberScore1-[N] :被りなしの[N]位のクリアまでの回数
+        timeScore1-[N]   :被りなしの[N]位のクリアまでの時間
+
+    optionMenu :設定画面
+        cursorUpOp    :カーソルを上に動かすキー
+        cursorDownOp  :カーソルを下に動かすキー
+        cursorLeftOp  :カーソルを左に動かすキー
+        cursorRightOp :カーソルを右に動かすキー
+        checkKeyOp    :チェックするキー
+        menuKeyOp     :メニューを開くキー
+        cancelOp      :閉じるキー
+
+    helpMenu[N] :ヘルプ画面 [N]はページ
+        helpText[N] :Textの高さを統一するために使う　[N]はページ
+
+    overBoardDisplay :ヒットやブローの数を出すなどするクラス
+
+    selectSE         :Select(丸で囲むやつ)を動かしたときのSE
+    colorPinSE       :色のピンを刺したときのSE
+    hitPinSE         :ヒットピンを刺したときのSE
+    blowPinSE        :ブローピンを刺したときのSE
+    hitBlowDisplaySE :ヒットとブローを表示する時のSE
+    normalBGM        :基本のBGM
+    clearBGM         :クリア時のBGM
+
+    check :答え合わせのボタン
+-->
+
+<body>
+    <button class="MenuOpen" id="menuOpen" onclick="MenuClick()">Menu</button> <!-- >>topMenu(画面遷移) -->
+    <div class="MenuGroup"> <!-- メニュー全てを含むグループ -->
+        <div id="topMenu"> <!-- メニュー開くとまず出るやつ -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <div class="Head">メニュー</div> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <!-- onmouseover:マウスがのっかったときのイベント -->
+                    <button type="submit" id="score"       onmouseover="menuOver(1)" onclick="ScoreMenuClick()">スコア(R)</button> <!-- >>scoreMenu1 -->
+                    <button type="submit" id="option"      onmouseover="menuOver(2)" onclick="OptionMenuClick()">設定(F)</button> <!-- >>optionMenu -->
+                    <button type="submit" id="help"        onmouseover="menuOver(3)" onclick="HelpMenuClick()">ヘルプ(V)</button> <!-- >>helpMenu1 -->
+                    <button type="submit" id="level"       onmouseover="menuOver(4)" onclick="LevelClick()">難易度：被りなし(C)</button>
+                    <button type="submit" id="startGiveUp" onmouseover="menuOver(5)" onclick="StartGiveUpClick()">ゲームスタート(X)</button> <!-- >>mainGame -->
+                    <button type="submit" id="close"       onmouseover="menuOver(6)" onclick="MenuClick()">閉じる(Q)</button> <!-- >>mainGame -->
+                </div>
+            </div>
+        </div>
+        <div id="scoreMenu1"> <!-- スコア表示 -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">スコア</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <div class="ScoreText">
+                        <div class="SideText"> <!-- テキストを横に並べるためのクラス -->
+                            <p>
+                                被りなし
+                                <br>
+                                正解するまでの時間
+                                <br>
+                                正解するまでの回数
+                                <br>
+                                各回答の平均時間
+                            </p>
+                            <p>
+                                <br>
+                                ：
+                                <br>
+                                ：
+                                <br>
+                                ：
+                            </p>
+                            <div class="Scroll" id="score1"> <!-- 被りなしのスコア置き場 -->
+                                <p id="score1-1">
+                                    未プレイ
+                                    <br>
+                                    N/A
+                                    <br>
+                                    N/A
+                                    <br>
+                                    N/A
+                                </p>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="SideText"> <!-- テキストを横に並べるためのクラス -->
+                            <p>
+                                被りあり
+                                <br>
+                                正解するまでの時間
+                                <br>
+                                正解するまでの回数
+                                <br>
+                                各回答の平均時間
+                            </p>
+                            <p>
+                                <br>
+                                ：
+                                <br>
+                                ：
+                                <br>
+                                ：
+                            </p>
+                            <div class="Scroll" id="score2"> <!-- 被りありのスコア置き場 -->
+                                <p id="score2-1">
+                                    未プレイ
+                                    <br>
+                                    N/A
+                                    <br>
+                                    N/A
+                                    <br>
+                                    N/A
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="ScoreMenuClickLeft()"><</button> <!-- >>scoreMenu2 -->
+                        <button onclick="ScoreMenuClick1()" class="NowPage">1</button>
+                        <button onclick="ScoreMenuClick2()">2</button> <!-- >>scoreMenu2 -->
+                        <button onclick="ScoreMenuClickRight()">></button> <!-- >>scoreMenu2 -->
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="scoreMenu2"> <!-- スコア表示 -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">スコアランキング</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <div class="SideText scoreText"> <!-- テキストを横に並べるためのクラス -->
+                        <div class="text-center">
+                            <p>被りなし</p>
+                            <p>順位</p>
+                            <p>1</p>
+                            <p>2</p>
+                            <p>3</p>
+                            <br>
+                            <p>被りあり</p>
+                            <p>順位</p>
+                            <p>1</p>
+                            <p>2</p>
+                            <p>3</p>
+                        </div>
+                        <div class="text-center">
+                            <br>
+                            <p>回数</p>
+                            <p id="numberScore1-1">-</p>
+                            <p id="numberScore1-2">-</p>
+                            <p id="numberScore1-3">-</p>
+                            <br>
+                            <br>
+                            <p>回数</p>
+                            <p id="numberScore2-1">-</p>
+                            <p id="numberScore2-2">-</p>
+                            <p id="numberScore2-3">-</p>
+                        </div>
+                        <div class="text-center">
+                            <br>
+                            <p>時間</p>
+                            <p id="timeScore1-1">--:--.-</p>
+                            <p id="timeScore1-2">--:--.-</p>
+                            <p id="timeScore1-3">--:--.-</p>
+                            <br>
+                            <br>
+                            <p>時間</p>
+                            <p id="timeScore2-1">--:--.-</p>
+                            <p id="timeScore2-2">--:--.-</p>
+                            <p id="timeScore2-3">--:--.-</p>
+                        </div>
+                    </div>
+                    <p></p>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="ScoreMenuClickLeft()"><</button> <!-- >>scoreMenu1 -->
+                        <button onclick="ScoreMenuClick1()">1</button> <!-- >>scoreMenu1 -->
+                        <button onclick="ScoreMenuClick2()" class="NowPage">2</button>
+                        <button onclick="ScoreMenuClickRight()">></button> <!-- >>scoreMenu1 -->
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="optionMenu"> <!-- 設定メニュー -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">設定</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p class="Head">キーボード操作の変更</p> <!-- 見出し -->
+                    <div class="SideText"> <!-- テキストを横に並べるためのクラス -->
+                        <p>
+                            上のピンのカーソルを上に動かす
+                            <br>
+                            上のピンのカーソルを下に動かす
+                            <br>
+                            下のピンのカーソルを左に動かす
+                            <br>
+                            下のピンのカーソルを右に動かす
+                            <br>
+                            ゲーム開始/チェック
+                            <br>
+                            メニューを開く/戻る
+                        </p>
+                        <p>
+                            ：<span class="OptionKey" id="cursorUpOp"    onclick="KeyChangeW()">Ｗ</span>
+                            <br>
+                            ：<span class="OptionKey" id="cursorDownOp"  onclick="KeyChangeS()">Ｓ</span>
+                            <br>
+                            ：<span class="OptionKey" id="cursorLeftOp"  onclick="KeyChangeA()">Ａ</span>
+                            <br>
+                            ：<span class="OptionKey" id="cursorRightOp" onclick="KeyChangeD()">Ｄ</span>
+                            <br>
+                            ：<span class="OptionKey" id="checkKeyOp"    onclick="KeyChangeE()">Ｅ</span>
+                            <br>
+                            ：<span class="OptionKey" id="menuKeyOp"     onclick="KeyChangeQ()">Ｑ</span>
+                        </p>
+                    </div>
+                    <p class="Head">音量設定</p> <!-- 見出し -->
+                    <div class="SideText SoundOption"> <!-- テキストを横に並べるためのクラス -->
+                        <p>主音量　　</p>
+                        <input type="image" class="SoundImg" src="img/Speaker.png" id="Mute1" onclick="MuteOrNot(1)"> <!-- SpeakerとMuteを切り替える -->
+                        <div class="SoundBar"> <!-- 音量調節の棒 -->
+                            <input type="range" name="Main_Sound" min="0" max="10" step="1" oninput="ChangeVolume(value, 1)">
+                        </div>
+                        <p id="mainSoundSize">5</p>
+                    </div>
+                    <div class="SideText SoundOption"> <!-- テキストを横に並べるためのクラス -->
+                        <p>ＢＧＭ　　</p>
+                        <input type="image" class="SoundImg" src="img/Speaker.png" id="Mute2" onclick="MuteOrNot(2)"> <!-- SpeakerとMuteを切り替える -->
+                        <div class="SoundBar"> <!-- 音量調節の棒 -->
+                            <input type="range" name="BGM_Sound" min="0" max="10" step="1" oninput="ChangeVolume(value, 2)">
+                        </div>
+                        <p id="BGMSoundSize">5</p>
+                    </div>
+                    <div class="SideText SoundOption"> <!-- テキストを横に並べるためのクラス -->
+                        <p>ＳＥ　　　</p>
+                        <input type="image" class="SoundImg" src="img/Speaker.png" id="Mute3" onclick="MuteOrNot(3)"> <!-- SpeakerとMuteを切り替える -->
+                        <div class="SoundBar"> <!-- 音量調節の棒 -->
+                            <input type="range" name="SE_Sound" min="0" max="10" step="1" oninput="ChangeVolume(value, 3)">
+                        </div>
+                        <p id="SESoundSize">5</p>
+                    </div>
+                    <div class="SideText SoundOption"> <!-- テキストを横に並べるためのクラス -->
+                        <p>ＶＯＩＣＥ</p>
+                        <input type="image" class="SoundImg" src="img/Speaker.png" id="Mute4" onclick="MuteOrNot(4)"> <!-- SpeakerとMuteを切り替える -->
+                        <div class="SoundBar"> <!-- 音量調節の棒 -->
+                            <input type="range" name="CV_Sound" min="0" max="10" step="1" oninput="ChangeVolume(value, 4)">
+                        </div>
+                        <p id="CVSoundSize">5</p>
+                    </div>
+                    <div class="MenuButtonGroup"> <!-- メニュー内で複数のボタンを扱うときに使うクラス -->
+                        <button onclick="ScoreInitialCheck()">スコアを初期化する</button> <!-- >>scoreInitializeAnnounce -->
+                        <button onclick="KeyInitialCheck()">キー配置を初期化する</button> <!-- >>optionInitializeAnnounce -->
+                        <button onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="helpMenu1">
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">ルール説明</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p id="helpText1">
+                        ランダムに決められた4つピンをヒントをもとに当てるゲームです。
+                        <br>
+                        プレイヤーは、任意の４つのピンを選びます。
+                        <br>
+                        ゲーム側はそのピンの色や位置が合っているごとにヒントを返します。
+                        <br>
+                        色だけが合っている時は<img class="HintPin" src="img/Blow.png">ブローピンが、
+                        <br>
+                        色も位置も合っている時は<img class="HintPin" src="img/Hit.png">ヒットピンがヒントとして示されます。
+                    </p>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="HelpMenuClickLeft()"><</button> <!-- >>helpMenu5 -->
+                        <button onclick="HelpMenuClick1()" class="NowPage">1</button>
+                        <button onclick="HelpMenuClick2()">2</button> <!-- >>helpMenu2 -->
+                        <button onclick="HelpMenuClick3()">3</button> <!-- >>helpMenu3 -->
+                        <button onclick="HelpMenuClick4()">4</button> <!-- >>helpMenu4 -->
+                        <button onclick="HelpMenuClick5()">5</button> <!-- >>helpMenu5 -->
+                        <button onclick="HelpMenuClickRight()">></button> <!-- >>helpMenu2 -->
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="helpMenu2">
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">難易度について</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p id="helpText2">
+                        難易度は「被りあり」と「被りなし」の二つがあり、
+                        <br>
+                        これは答えに同じ色が2ピン以上使われるかという違いになります。
+                        <br>
+                        例として、答えが
+                        <img class="TextImg1" src="img/Blue.png" alt="●">
+                        <img class="TextImg1" src="img/Magenta.png" alt="●">
+                        <img class="TextImg1" src="img/Blue.png" alt="●">
+                        <img class="TextImg1" src="img/Green.png" alt="●">
+                        となる問題は、被りありでしか出題されません。
+                    </p>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="HelpMenuClickLeft()"><</button> <!-- >>helpMenu1 -->
+                        <button onclick="HelpMenuClick1()">1</button> <!-- >>helpMenu1 -->
+                        <button onclick="HelpMenuClick2()" class="NowPage">2</button>
+                        <button onclick="HelpMenuClick3()">3</button> <!-- >>helpMenu3 -->
+                        <button onclick="HelpMenuClick4()">4</button> <!-- >>helpMenu4 -->
+                        <button onclick="HelpMenuClick5()">5</button> <!-- >>helpMenu5 -->
+                        <button onclick="HelpMenuClickRight()">></button> <!-- >>helpMenu3 -->
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="helpMenu3">
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">マウスでの操作方法</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p id="helpText3">
+                        マウスでクリックされた縦に並んだピンや穴は<img class="TextImg2" src="img/VerCircle.png">で囲まれます。
+                        <br>
+                        この状態で下の横に並んだピンをクリックすると、<img class="TextImg2" src="img/VerCircle.png">で囲まれた場所にクリックした色のピンが刺されます。
+                        <br>
+                        4つの穴全てにピンを刺すとcheckボタンが押せるようになります。
+                        <br>
+                        checkボタンを押すと、刺したピンに応じたヒントをもらうことができます。
+                    </p>
+                    <div class="Pagination"> <!-- ページネーション -->
+                        <button onclick="HelpMenuClickLeft()"><</button> <!-- >>helpMenu2 -->
+                        <button onclick="HelpMenuClick1()">1</button> <!-- >>helpMenu1 -->
+                        <button onclick="HelpMenuClick2()">2</button> <!-- >>helpMenu2 -->
+                        <button onclick="HelpMenuClick3()" class="NowPage">3</button>
+                        <button onclick="HelpMenuClick4()">4</button> <!-- >>helpMenu4 -->
+                        <button onclick="HelpMenuClick5()">5</button> <!-- >>helpMenu5 -->
+                        <button onclick="HelpMenuClickRight()">></button> <!-- >>helpMenu4 -->
+                    </div>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="helpMenu4">
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">キーボードでの操作方法</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <div class="SideText" id="helpText4"> <!-- テキストを横に並べるためのクラス -->
+                        <p>
+                            上のピンのカーソル<img class="TextImg2" src="img/VerCircle.png">を上に動かす
+                            <br>
+                            上のピンのカーソル<img class="TextImg2" src="img/VerCircle.png">を下に動かす
+                            <br>
+                            下のピンのカーソル<img class="TextImg2" src="img/VerCircle.png">を左に動かす
+                            <br>
+                            下のピンのカーソル<img class="TextImg2" src="img/VerCircle.png">を右に動かす
+                            <br>
+                            ゲーム開始/checkボタンを押す
+                            <br>
+                            メニューを開く/戻る
+                            <br>
+                            ピンの色を直接選択する
+                        </p>
+                        <p>
+                            ：<span class="OptionKey" id="cursorUp">Ｗ</span>, ↑
+                            <br>
+                            ：<span class="OptionKey" id="cursorDoun">Ｓ</span>, ↓
+                            <br>
+                            ：<span class="OptionKey" id="cursorLeft">Ａ</span>, ←
+                            <br>
+                            ：<span class="OptionKey" id="cursorRight">Ｄ</span>, →
+                            <br>
+                            ：<span id="checkKey">Ｅ</span>
+                            <br>
+                            ：<span id="menuKey">Ｑ</span>, Esc
+                            <br>
+                            ：1~6
+                        </p>
+                    </div>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="HelpMenuClickLeft()"><</button>
+                        <button onclick="HelpMenuClick1()">1</button> <!-- >>helpMenu1 -->
+                        <button onclick="HelpMenuClick2()">2</button> <!-- >>helpMenu2 -->
+                        <button onclick="HelpMenuClick3()">3</button> <!-- >>helpMenu3 -->
+                        <button onclick="HelpMenuClick4()" class="NowPage">4</button>
+                        <button onclick="HelpMenuClick5()">5</button> <!-- >>helpMenu5 -->
+                        <button onclick="HelpMenuClickRight()">></button>
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <div id="helpMenu5">
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">その他</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p id="helpText5">
+                        スコアについて
+                        <br>
+                        正解するまでの時間：スタートから正解するまでの時間です。
+                        <br>
+                        正解するまでの回数：スタートから正解するまでの回答回数です。
+                        <br>
+                        各回答の平均時間：「時間」÷「回数」で求められる１回の回答にかかった時間です。
+                        <br>
+                        ランキング：正解するまでの回数の少ない順かつ、その中で時間が短い順決まります。
+                        <br>
+                        設定について
+                        <br>
+                        キーボードの操作の切り替えは設定のアルファベットをクリックした後、
+                        <br>
+                        設定したいキー(アルファベット)を入力することでそれぞれのキーを変更することができます。
+                    </p>
+                    <span class="Pagination"> <!-- ページネーション -->
+                        <button onclick="HelpMenuClickLeft()"><</button>
+                        <button onclick="HelpMenuClick1()">1</button> <!-- >>helpMenu1 -->
+                        <button onclick="HelpMenuClick2()">2</button> <!-- >>helpMenu2 -->
+                        <button onclick="HelpMenuClick3()">3</button> <!-- >>helpMenu3 -->
+                        <button onclick="HelpMenuClick4()">4</button> <!-- >>helpMenu4 -->
+                        <button onclick="HelpMenuClick5()" class="NowPage">5</button>
+                        <button onclick="HelpMenuClickRight()">></button>
+                    </span>
+                    <button class="MenuButton" onclick="MenuClick()">メニューに戻る</button> <!-- >>topMenu -->
+                </div>
+            </div>
+        </div>
+        <!-- メニューで使うアナウンス -->
+        <div class="MenuAnnounce" id="scoreInitializeAnnounce"> <!-- スコア削除時のアナウンス -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">確認</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p>
+                        スコアが削除されます。
+                        <br>
+                        また、再読み込みを伴うため、現在進行中のゲームも記録されません。
+                        <br>
+                        本当によろしいですか？
+                    </p>
+                    <div class="MenuButtonGroup"> <!-- メニュー内で複数のボタンを扱うときに使うクラス -->
+                        <button onclick="ScoreInitialize()">はい</button> <!-- >>mainGame -->
+                        <button onclick="NotScoreInitialize()">いいえ</button> <!-- >>optionMenu -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="MenuAnnounce" id="optionInitializeAnnounce"> <!-- 設定初期化時のアナウンス -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">確認</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p>
+                        設定内容が初期設定に書き変わります。
+                        <br>
+                        本当によろしいですか？
+                    </p>
+                    <div class="MenuButtonGroup"> <!-- メニュー内で複数のボタンを扱うときに使うクラス -->
+                        <button onclick="KeyInitialize()">はい</button> <!-- >>option -->
+                        <button onclick="NotKeyInitialize()">いいえ</button> <!-- >>option -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="MenuAnnounce" id="giveUpAnnounce"> <!-- ギブアップ時のアナウンス -->
+            <div class="TextCover"> <!-- テキストを表示するウィンドウ -->
+                <p class="Head">確認</p> <!-- 見出し -->
+                <div class="Text"> <!-- テキストの範囲 -->
+                    <p>
+                        現在のゲームを終了します。
+                        <br>
+                        本当によろしいですか？
+                    </p>
+                    <div class="MenuButtonGroup"> <!-- メニュー内で複数のボタンを扱うときに使うクラス -->
+                        <button onclick="GiveUpFunc()">はい</button> <!-- mainGame -->
+                        <button onclick="NotGiveUpFunc()">いいえ</button> <!-- >>topMenu -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div> <!--「Nヒット！Mブロー！」と表示する -->
+        <p id="overBoardDisplay">１ヒット！２ブロー！</p><!-- クリアしたりしたら文字を変える -->
+        <div class="Star RotateRight" style="margin-bottom: 20rem;">　</div>
+        <div class="Star RotateLeft" style="margin-bottom: 20rem;">　</div>
+        <div class="Star RotateRight" style="right: 0; margin-bottom: 20rem;">　</div>
+        <div class="Star RotateLeft" style="right: 0; margin-bottom: 20rem;">　</div>
+        <div class="Star RotateRight">　</div>
+        <div class="Star RotateLeft">　</div>
+        <div class="Star RotateRight" style="right: 0;">　</div>
+        <div class="Star RotateLeft" style="right: 0;">　</div>
+        <div class="Tears">　</div>
+        <!-- styleについて:
+            right, left, top, bottom: 端からの位置: 規定値はleft: 0, bottom: 0
+            width: 回転の直径: 規定値は16rem
+            animation-duration: １回転にかかる時間: 規定値は3s -->
+    </div>
+
+    <div class="TopExplain">
+        <img class="HintPin" src="img/Hit.png" alt="●">ヒット：色と場所が正解　
+        <img class="HintPin" src="img/Blow.png" alt="●">ブロー：色だけが正解
+    </div>
+
+    <div class="BackGround"></div> <!-- 背景 -->
+
+    <div class="BoardBack"> <!-- ゲーム板の位置調整など -->
+        <div class="BoardGroup"> <!-- ゲーム板 -->
+            <div class="NavigateCol">
+                <div class="DummyBox1"></div>
+                <div class="NavigateBox">
+                    <img src="img/1.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/2.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/3.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/4.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/5.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/6.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/7.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/Tri.png">
+                </div>
+                <div class="NavigateBox">
+                    <img src="img/8.png">
+                </div>
+                <div class="DummyBox2"></div>
+            </div>
+            <div class="HintCol"> <!-- ヒントピンが並ぶ行 -->
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint1-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint1-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint1-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint1-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint2-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint2-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint2-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint2-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint3-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint3-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint3-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint3-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint4-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint4-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint4-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint4-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint5-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint5-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint5-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint5-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint6-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint6-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint6-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint6-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint7-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint7-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint7-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint7-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintHoleGroup"> <!-- ヒントピンの穴のグループ -->
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                        <img class="HintPin" src="img/Hint_Hole.png" alt="●">
+                    </div>
+                    <div class="HintPinGroup"> <!-- ヒントピンのグループ 穴の上に重なっている -->
+                        <img class="HintPin" src="img/Clear.png" id="hint8-1" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint8-2" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint8-3" alt="●">
+                        <img class="HintPin" src="img/Clear.png" id="hint8-4" alt="●">
+                    </div>
+                </div>
+                <div class="HintGroup"> <!-- ヒントピンの一塊 -->
+                    <div class="HintDummy"></div> <!-- 高さをそろえるためのダミー -->
+                </div>
+            </div>
+
+            <div class="GameGroup"> <!-- 縦9列をまとめたもの -->
+                <div class="RowGroup"> <!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut1-1"></div>
+                        <br>
+                        <div id="pullOut1-2"></div>
+                        <br>
+                        <div id="pullOut1-3"></div>
+                        <br>
+                        <div id="pullOut1-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup1"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest1-1" onclick="QuestClick(1, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest1-2" onclick="QuestClick(1, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest1-3" onclick="QuestClick(1, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest1-4" onclick="QuestClick(1, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut2-1"></div>
+                        <br>
+                        <div id="pullOut2-2"></div>
+                        <br>
+                        <div id="pullOut2-3"></div>
+                        <br>
+                        <div id="pullOut2-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup2"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest2-1" onclick="QuestClick(2, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest2-2" onclick="QuestClick(2, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest2-3" onclick="QuestClick(2, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest2-4" onclick="QuestClick(2, 4)" alt="●">
+                    </div>
+                </div>
+        
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut3-1"></div>
+                        <br>
+                        <div id="pullOut3-2"></div>
+                        <br>
+                        <div id="pullOut3-3"></div>
+                        <br>
+                        <div id="pullOut3-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup3"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest3-1" onclick="QuestClick(3, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest3-2" onclick="QuestClick(3, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest3-3" onclick="QuestClick(3, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest3-4" onclick="QuestClick(3, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut4-1"></div>
+                        <br>
+                        <div id="pullOut4-2"></div>
+                        <br>
+                        <div id="pullOut4-3"></div>
+                        <br>
+                        <div id="pullOut4-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup4"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest4-1" onclick="QuestClick(4, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest4-2" onclick="QuestClick(4, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest4-3" onclick="QuestClick(4, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest4-4" onclick="QuestClick(4, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut5-1"></div>
+                        <br>
+                        <div id="pullOut5-2"></div>
+                        <br>
+                        <div id="pullOut5-3"></div>
+                        <br>
+                        <div id="pullOut5-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup5"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest5-1" onclick="QuestClick(5, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest5-2" onclick="QuestClick(5, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest5-3" onclick="QuestClick(5, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest5-4" onclick="QuestClick(5, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut6-1"></div>
+                        <br>
+                        <div id="pullOut6-2"></div>
+                        <br>
+                        <div id="pullOut6-3"></div>
+                        <br>
+                        <div id="pullOut6-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup6"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest6-1" onclick="QuestClick(6, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest6-2" onclick="QuestClick(6, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest6-3" onclick="QuestClick(6, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest6-4" onclick="QuestClick(6, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut7-1"></div>
+                        <br>
+                        <div id="pullOut7-2"></div>
+                        <br>
+                        <div id="pullOut7-3"></div>
+                        <br>
+                        <div id="pullOut7-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup7"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest7-1" onclick="QuestClick(7, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest7-2" onclick="QuestClick(7, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest7-3" onclick="QuestClick(7, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest7-4" onclick="QuestClick(7, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="QuestHoleGroup"> <!-- 回答の穴のグループ -->
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="PullOutPinGroup"> <!-- 抜けるピンのグループ　穴の上に重なっている -->
+                        <div id="pullOut8-1"></div>
+                        <br>
+                        <div id="pullOut8-2"></div>
+                        <br>
+                        <div id="pullOut8-3"></div>
+                        <br>
+                        <div id="pullOut8-4"></div>
+                    </div>
+                    <div class="QuestPinGroup" id="questGroup8"> <!-- 回答のピンのグループ　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" id="quest8-1" onclick="QuestClick(8, 1)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest8-2" onclick="QuestClick(8, 2)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest8-3" onclick="QuestClick(8, 3)" alt="●">
+                        <br>
+                        <input type="image" src="img/Clear.png" id="quest8-4" onclick="QuestClick(8, 4)" alt="●">
+                    </div>
+                </div>
+                
+                <!--------列間-------->
+        
+                <div class="RowGroup"> <!-- 縦のまとまり --><!-- 縦のまとまり -->
+                    <div class="AnsHoleGroup">
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                        <br>
+                        <img src="img/Hole.png" alt="●">
+                    </div>
+                    <div class="AnsPinGroup">
+                        <img src="img/Clear.png" id="ansPin1" alt="●">
+                        <br>
+                        <img src="img/Clear.png" id="ansPin2" alt="●">
+                        <br>
+                        <img src="img/Clear.png" id="ansPin3" alt="●">
+                        <br>
+                        <img src="img/Clear.png" id="ansPin4" alt="●">
+                    </div>
+                    <div class="OpenLid" id="ansLid">
+                    </div>
+                </div>
+            </div>
+            <div class="FooterGroup"> <!-- 下のグループ -->
+                <div class="ColorSampleGroup"> <!-- 色の見本のグループ -->
+                    <div class="ColorSampleHoleGroup"> <!-- 色の見本の穴を置く -->
+                        <img src="img/Hole.png" alt="●" >
+                        <img src="img/Hole.png" alt="●" >
+                        <img src="img/Hole.png" alt="●" >
+                        <img src="img/Hole.png" alt="●" >
+                        <img src="img/Hole.png" alt="●" >
+                        <img src="img/Hole.png" alt="●" >
+                    </div>
+                    <div class="ColorSamplePinGroup"> <!-- 色の見本のピンを置く　穴の上に重なっている -->
+                        <input type="image" src="img/Clear.png" class="SampleBlue"    id="colorSample1" onclick="ColorClick(1)" alt="●">
+                        <input type="image" src="img/Clear.png" class="SampleRed"     id="colorSample2" onclick="ColorClick(2)" alt="●">
+                        <input type="image" src="img/Clear.png" class="SampleGreen"   id="colorSample3" onclick="ColorClick(3)" alt="●">
+                        <input type="image" src="img/Clear.png" class="SampleYellow"  id="colorSample4" onclick="ColorClick(4)" alt="●">
+                        <input type="image" src="img/Clear.png" class="SampleMagenta" id="colorSample5" onclick="ColorClick(5)" alt="●">
+                        <input type="image" src="img/Clear.png" class="SampleWhite"   id="colorSample6" onclick="ColorClick(6)" alt="●">
+                    </div>
+                </div>
+                <div class="CheckGroup"> <!-- 右下のボタンの周り -->
+                    <button type="submit" id="check" onclick="CheckFunc()"> <!-- 右下のボタン -->
+                        Start
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 音声はMP3にする -->
+    <audio src="audio/Select_SE.mp3"           id="selectSE" ></audio> <!-- 選択する時のSE -->
+    <audio src="audio/Color_Pin_SE.mp3"        id="colorPinSE" ></audio> <!-- ピンの刺さるSE -->
+    <audio src="audio/Hit_SE.mp3"              id="hitPinSE" ></audio> <!-- ヒットのSE -->
+    <audio src="audio/Blow_SE.mp3"             id="blowPinSE" ></audio> <!-- ブローのSE -->
+    <audio src="audio/Hit_Blow_Display_SE.mp3" id="hitBlowDisplaySE" ></audio> <!-- ヒットとブローの数を表示する文章が出るときのSE -->
+    <audio src="audio/Clear_SE.mp3"            id="clearSE"></audio> <!-- クリア時SE -->
+    <audio src="audio/Game_Over_SE.mp3"        id="gameOverSE"></audio> <!-- ゲームオーバー時SE -->
+    <audio src="audio/maou_game_village07.mp3" id="normalBGM" loop></audio> <!-- 通常BGM -->
+    <audio src="audio/WC0B.wav"                id="WCblow0CV" ></audio>
+    <audio src="audio/WC1B.wav"                id="WCblow1CV" ></audio>
+    <audio src="audio/WC2B.wav"                id="WCblow2CV" ></audio>
+    <audio src="audio/WC3B.wav"                id="WCblow3CV" ></audio>
+    <audio src="audio/WC4B.wav"                id="WCblow4CV" ></audio>
+    <audio src="audio/WC0H.wav"                id="WChit0CV" ></audio>
+    <audio src="audio/WC1H.wav"                id="WChit1CV" ></audio>
+    <audio src="audio/WC2H.wav"                id="WChit2CV" ></audio>
+    <audio src="audio/WC3H.wav"                id="WChit3CV" ></audio>
+    <audio src="audio/WC4H.wav"                id="WChit4CV" ></audio>
+    <audio src="audio/WCclear.wav"             id="WCclear" ></audio>
+    <audio src="audio/WCnewrecoad.wav"         id="WCnewrecoad" ></audio>
+    <audio src="audio/WCrankin.wav"            id="WCrankin" ></audio>
+    <script src="js/script.js"></script>
+</body>
+</html>
